@@ -1,0 +1,9 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAGENT_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1

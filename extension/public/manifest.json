@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "OpenAgent",
+  "version": "0.1.0",
+  "description": "A safe, MCP-first browser agent.",
+  "permissions": ["activeTab", "contextMenus", "sidePanel", "storage", "scripting"],
+  "host_permissions": ["http://127.0.0.1:8000/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "OpenAgent", "default_popup": "popup.html" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "options_page": "options.html",
+  "commands": {
+    "open-side-panel": {
+      "suggested_key": { "default": "Alt+Shift+O" },
+      "description": "Open OpenAgent"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self';"
+  }
+}
