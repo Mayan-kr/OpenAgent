@@ -114,10 +114,17 @@ function extractPageContext(): PageContext {
 async function currentPageContext(): Promise<PageContext> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) throw new Error("No active tab is available.");
-  const [{ result }] = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: extractPageContext
-  });
+  let result: PageContext | undefined;
+  try {
+    [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractPageContext
+    });
+  } catch {
+    throw new Error(
+      "OpenAgent can't read this page. Restricted pages (chrome://, the Web Store, PDFs, a new tab) are never readable - on a regular website, click the OpenAgent toolbar icon to grant access, then try again."
+    );
+  }
   if (!result) throw new Error("Unable to extract the active page.");
   return result;
 }
