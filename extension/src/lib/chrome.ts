@@ -23,3 +23,5 @@ export const setProviderConfig = (providerConfig: ProviderConfig): Promise<void>
 
 export const clearProviderConfig = (): Promise<void> =>
   chrome.storage.local.remove("providerConfig");
+
+export const openOptionsPage = (): Promise<void> => chrome.runtime.openOptionsPage();

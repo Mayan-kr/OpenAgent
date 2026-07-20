@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { askAgent } from "../lib/api";
-import { getBackendUrl, getPageContext, getProviderConfig } from "../lib/chrome";
+import { getBackendUrl, getPageContext, getProviderConfig, openOptionsPage } from "../lib/chrome";
 import "./styles.css";
 
 type Message = { role: "user" | "agent"; content: string };
@@ -56,8 +56,19 @@ function SidePanel() {
   return (
     <main>
       <header>
-        <strong>OpenAgent</strong>
-        <span className="status">{status}</span>
+        <div className="header-left">
+          <strong>OpenAgent</strong>
+          <span className="status">{status}</span>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => void openOptionsPage()}
+          aria-label="Open settings"
+          title="Open settings"
+        >
+          ⚙
+        </button>
       </header>
       <section className="messages" aria-live="polite">
         {messages.map((message, index) => (
