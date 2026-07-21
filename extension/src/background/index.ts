@@ -122,7 +122,7 @@ async function currentPageContext(): Promise<PageContext> {
     });
   } catch {
     throw new Error(
-      "OpenAgent can't read this page. Restricted pages (chrome://, the Web Store, PDFs, a new tab) are never readable - on a regular website, click the OpenAgent toolbar icon to grant access, then try again."
+      "OpenAgent can't read this page. Restricted pages - chrome:// settings, the Chrome Web Store, PDFs, and the new-tab page - are never readable by any extension. Open a regular website and try again."
     );
   }
   if (!result) throw new Error("Unable to extract the active page.");

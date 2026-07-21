@@ -21,7 +21,7 @@ Users may alternatively bring their own key for any OpenAI-compatible endpoint (
 ## Trust boundaries
 
 - A webpage is untrusted input, never agent instructions.
-- The extension is the browser capability host and requests `activeTab` only.
+- The extension is the browser capability host. It holds broad `http`/`https` host permissions so it can read the active page on demand (an agent that only works after a per-tab click is unusable in practice), but page access is read-only: it injects a bounded, sanitizing extractor and never writes to the page. Mutating tools remain approval-gated through MCP. Restricted surfaces (`chrome://`, the Web Store, PDFs, the new-tab page) are never readable by any extension.
 - The backend validates all HTTP/WebSocket payloads with Pydantic and stores no provider keys: server-operator keys stay in the environment, and user-supplied BYOK keys are used once per request and never persisted or logged.
 - MCP tool implementations are small services with an explicit safety class in [the shared contract](../shared/mcp/browser-tools.json).
 
