@@ -9,23 +9,40 @@ import {
 } from "../lib/chrome";
 import "../sidepanel/styles.css";
 
-const PROVIDER_PRESETS: { name: string; baseUrl: string }[] = [
-  { name: "OpenAI", baseUrl: "https://api.openai.com/v1" },
-  { name: "Groq", baseUrl: "https://api.groq.com/openai/v1" },
-  { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1" },
-  { name: "Together AI", baseUrl: "https://api.together.xyz/v1" },
-  { name: "Fireworks AI", baseUrl: "https://api.fireworks.ai/inference/v1" },
-  { name: "Ollama (local)", baseUrl: "http://127.0.0.1:11434/v1" },
-  { name: "Custom", baseUrl: "" }
+const PROVIDER_PRESETS: { name: string; baseUrl: string; defaultModel: string }[] = [
+  { name: "OpenAI", baseUrl: "https://api.openai.com/v1", defaultModel: "gpt-4o-mini" },
+  {
+    name: "Groq",
+    baseUrl: "https://api.groq.com/openai/v1",
+    defaultModel: "llama-3.3-70b-versatile"
+  },
+  {
+    name: "OpenRouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    defaultModel: "meta-llama/llama-3.3-70b-instruct"
+  },
+  {
+    name: "Together AI",
+    baseUrl: "https://api.together.xyz/v1",
+    defaultModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+  },
+  {
+    name: "Fireworks AI",
+    baseUrl: "https://api.fireworks.ai/inference/v1",
+    defaultModel: "accounts/fireworks/models/llama-v3p3-70b-instruct"
+  },
+  { name: "Ollama (local)", baseUrl: "http://127.0.0.1:11434/v1", defaultModel: "llama3.2" },
+  { name: "Custom", baseUrl: "", defaultModel: "" }
 ];
 
 function Options() {
   const [backendUrl, setUrl] = useState("http://127.0.0.1:8000");
   const [preset, setPreset] = useState(PROVIDER_PRESETS[0].name);
   const [providerBaseUrl, setProviderBaseUrl] = useState(PROVIDER_PRESETS[0].baseUrl);
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(PROVIDER_PRESETS[0].defaultModel);
   const [apiKey, setApiKey] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void getBackendUrl().then(setUrl);
@@ -42,18 +59,35 @@ function Options() {
   const applyPreset = (name: string) => {
     setPreset(name);
     const match = PROVIDER_PRESETS.find((entry) => entry.name === name);
-    if (match?.baseUrl) setProviderBaseUrl(match.baseUrl);
+    if (!match) return;
+    if (match.baseUrl) setProviderBaseUrl(match.baseUrl);
+    // Prefill a real, editable model value so it is never accidentally left empty.
+    if (match.defaultModel) setModel(match.defaultModel);
   };
 
   const save = async () => {
+    setError("");
+    setStatus("");
     await setBackendUrl(backendUrl);
-    if (providerBaseUrl && model && apiKey) {
-      await setProviderConfig({ baseUrl: providerBaseUrl, model, apiKey });
-    } else {
+
+    const key = apiKey.trim();
+    const url = providerBaseUrl.trim();
+    const modelName = model.trim();
+
+    // Empty key is an explicit choice: fall back to the backend's built-in provider.
+    if (!key) {
       await clearProviderConfig();
+      setStatus("Saved. No key set - using the backend's built-in provider.");
+      return;
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    // Key present but something else is missing: tell the user instead of silently
+    // wiping the config (the old behaviour, which is why keys "disappeared").
+    if (!url || !modelName) {
+      setError("Enter a base URL and a model, or clear the API key to use the backend default.");
+      return;
+    }
+    await setProviderConfig({ baseUrl: url, model: modelName, apiKey: key });
+    setStatus(`Saved. Using ${modelName}.`);
   };
 
   return (
@@ -111,7 +145,8 @@ function Options() {
       </label>
 
       <button onClick={() => void save()}>Save</button>
-      {saved && <span className="status">Saved</span>}
+      {status && <span className="status">{status}</span>}
+      {error && <span className="error">{error}</span>}
     </main>
   );
 }

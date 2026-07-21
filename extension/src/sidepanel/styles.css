@@ -28,6 +28,10 @@ header {
   color: #9aa2b1;
   font-size: 12px;
 }
+.error {
+  color: #ff8f8f;
+  font-size: 12px;
+}
 .header-left {
   display: flex;
   align-items: center;
