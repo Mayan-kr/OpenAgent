@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.page_context import page_context_store
 
 client = TestClient(app)
 
@@ -33,7 +34,10 @@ def test_chat_stores_read_only_context() -> None:
         },
     )
     assert response.status_code == 200
-    assert "MCP capability host" in response.json()["message"]
+    # The read-only page context is persisted for the MCP side to read back.
+    latest = page_context_store.latest()
+    assert latest is not None
+    assert latest.title == "Example"
 
 
 def test_mcp_tool_catalog_marks_actions_as_approval_gated() -> None:
@@ -73,6 +77,7 @@ def test_chat_with_byok_provider_never_echoes_the_key(monkeypatch) -> None:
         def post(self, url: str, headers: dict, json: dict) -> FakeResponse:
             captured["url"] = url
             captured["headers"] = headers
+            captured["body"] = json
             return FakeResponse()
 
     monkeypatch.setattr("app.providers.openai_compatible.httpx.Client", FakeClient)
@@ -84,7 +89,7 @@ def test_chat_with_byok_provider_never_echoes_the_key(monkeypatch) -> None:
             "page": {
                 "url": "https://example.com/",
                 "title": "Example",
-                "text": "Example page",
+                "text": "Distinctive page body text about widgets",
                 "selectedText": "",
                 "interactiveElements": [],
             },
@@ -100,6 +105,14 @@ def test_chat_with_byok_provider_never_echoes_the_key(monkeypatch) -> None:
     assert "sk-super-secret" not in response.text
     assert captured["headers"]["Authorization"] == "Bearer sk-super-secret"
     assert captured["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    # The page content must actually reach the model as a system message, otherwise the
+    # model is answering blind (the bug where it kept asking for context it "had").
+    messages = captured["body"]["messages"]
+    system = next(message for message in messages if message["role"] == "system")
+    assert "Distinctive page body text about widgets" in system["content"]
+    assert any(
+        message["role"] == "user" and message["content"] == "summarize" for message in messages
+    )
 
 
 def test_chat_rejects_plaintext_remote_provider_url() -> None:

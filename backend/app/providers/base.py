@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class GenerationRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=32_000)
+    system: str = Field(default="", max_length=40_000)
     model: str = Field(default="", max_length=200)
     temperature: float = Field(default=0.2, ge=0, le=2)
     max_tokens: int = Field(default=1_024, ge=1, le=16_384)

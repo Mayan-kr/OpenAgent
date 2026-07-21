@@ -21,9 +21,13 @@ class OpenAICompatibleProvider(ModelProvider):
         self._api_key = api_key
 
     def generate(self, request: GenerationRequest) -> GenerationResult:
+        messages: list[dict[str, str]] = []
+        if request.system:
+            messages.append({"role": "system", "content": request.system})
+        messages.append({"role": "user", "content": request.prompt})
         payload = {
             "model": request.model,
-            "messages": [{"role": "user", "content": request.prompt}],
+            "messages": messages,
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
