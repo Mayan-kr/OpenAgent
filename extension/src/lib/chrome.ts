@@ -1,4 +1,4 @@
-import type { PageContext, ProviderConfig } from "../types";
+import type { ChatMessage, PageContext, ProviderConfig } from "../types";
 
 export const getPageContext = (): Promise<PageContext> =>
   chrome.runtime.sendMessage({ type: "GET_PAGE_CONTEXT" }) as Promise<PageContext>;
@@ -25,3 +25,15 @@ export const clearProviderConfig = (): Promise<void> =>
   chrome.storage.local.remove("providerConfig");
 
 export const openOptionsPage = (): Promise<void> => chrome.runtime.openOptionsPage();
+
+// Conversation history persists in device-local storage so closing and reopening the
+// side panel resumes the same chat instead of starting over.
+export const getConversation = async (): Promise<ChatMessage[] | null> => {
+  const { conversation } = await chrome.storage.local.get("conversation");
+  return (conversation as ChatMessage[] | undefined) ?? null;
+};
+
+export const setConversation = (conversation: ChatMessage[]): Promise<void> =>
+  chrome.storage.local.set({ conversation });
+
+export const clearConversation = (): Promise<void> => chrome.storage.local.remove("conversation");

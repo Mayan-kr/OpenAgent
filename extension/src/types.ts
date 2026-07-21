@@ -52,3 +52,5 @@ export type ProviderConfig = {
   apiKey: string;
   model: string;
 };
+
+export type ChatMessage = { role: "user" | "agent"; content: string };

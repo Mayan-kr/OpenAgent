@@ -1,19 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { askAgent } from "../lib/api";
-import { getBackendUrl, getPageContext, getProviderConfig, openOptionsPage } from "../lib/chrome";
+import {
+  clearConversation,
+  getBackendUrl,
+  getConversation,
+  getPageContext,
+  getProviderConfig,
+  openOptionsPage,
+  setConversation
+} from "../lib/chrome";
+import type { ChatMessage } from "../types";
 import "./styles.css";
 
-type Message = { role: "user" | "agent"; content: string };
+const GREETING: ChatMessage = {
+  role: "agent",
+  content: "Hi! Ask me anything about the page you're viewing."
+};
 
 function SidePanel() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "agent", content: "Hi! Ask me anything about the page you're viewing." }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [online, setOnline] = useState<boolean | null>(null);
   const [modelLabel, setModelLabel] = useState("");
   const [sending, setSending] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,9 +40,28 @@ function SidePanel() {
       });
   }, []);
 
+  // Restore any saved conversation on open before we start persisting new ones.
+  useEffect(() => {
+    void getConversation().then((stored) => {
+      if (stored && stored.length) setMessages(stored);
+      setLoaded(true);
+    });
+  }, []);
+
+  // Persist the conversation (capped) once the initial restore has run.
+  useEffect(() => {
+    if (loaded) void setConversation(messages.slice(-200));
+  }, [messages, loaded]);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
+
+  const newChat = async () => {
+    await clearConversation();
+    setMessages([GREETING]);
+    setInput("");
+  };
 
   const submit = async () => {
     const prompt = input.trim();
@@ -77,15 +107,26 @@ function SidePanel() {
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          className="icon-button"
-          onClick={() => void openOptionsPage()}
-          aria-label="Open settings"
-          title="Settings"
-        >
-          ⚙
-        </button>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => void newChat()}
+            aria-label="New chat"
+            title="New chat"
+          >
+            ✚
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => void openOptionsPage()}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            ⚙
+          </button>
+        </div>
       </header>
 
       <section className="messages" aria-live="polite">
