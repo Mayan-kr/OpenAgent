@@ -22,7 +22,7 @@ describe("jsonToProfileFields", () => {
     ]);
   });
 
-  it("flattens nested objects and arrays", () => {
+  it("flattens nested objects and primitive arrays", () => {
     expect(
       jsonToProfileFields({ address: { city: "Delhi", zip: 110001 }, skills: ["ts", "py"] })
     ).toEqual([
@@ -30,6 +30,20 @@ describe("jsonToProfileFields", () => {
       { label: "address - zip", value: "110001" },
       { label: "skills", value: "ts, py" }
     ]);
+  });
+
+  it("renders an array of objects as one readable row each (never [object Object])", () => {
+    const fields = jsonToProfileFields({
+      education: [
+        { degree: "B.Tech", institution: "XYZ", year: 2024 },
+        { degree: "M.Tech", institution: "ABC", year: 2026 }
+      ]
+    });
+    expect(fields).toEqual([
+      { label: "education 1", value: "degree: B.Tech; institution: XYZ; year: 2024" },
+      { label: "education 2", value: "degree: M.Tech; institution: ABC; year: 2026" }
+    ]);
+    expect(JSON.stringify(fields)).not.toContain("[object Object]");
   });
 
   it("ignores non-object junk", () => {
