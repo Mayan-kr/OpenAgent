@@ -155,6 +155,12 @@ custom field you like — phone, address, LinkedIn URL). Click **+ Add field** t
 remove one, then **Save**. These values are stored only in this browser and are sent to the model
 **only on pages that have a form**, never during ordinary browsing questions.
 
+Already have your details in a JSON file? Click **Import JSON** instead of typing them — it accepts
+a flat `{ "Full name": "Ada", "Email": "ada@example.com" }` object or an array of
+`{ "label": ..., "value": ... }` (nested objects are flattened automatically). Review the imported
+rows and click **Save**. **Export JSON** downloads your current profile as a file to back up or move
+to another browser.
+
 ### Filling forms (approval-gated)
 
 OpenAgent can fill form fields for you, but never on its own:

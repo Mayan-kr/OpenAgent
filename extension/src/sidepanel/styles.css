@@ -386,6 +386,12 @@ main.settings .profile-row input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.18);
 }
+main.settings .profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 14px 0;
+}
 main.settings .add-field-btn {
   margin: 2px 14px 0;
   padding: 8px 12px;
@@ -393,6 +399,9 @@ main.settings .add-field-btn {
   border: 1px solid var(--border);
   color: var(--muted);
   justify-self: start;
+}
+main.settings .profile-actions .add-field-btn {
+  margin: 0;
 }
 main.settings .add-field-btn:hover:not(:disabled) {
   filter: none;

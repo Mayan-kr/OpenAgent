@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   clearProviderConfig,
@@ -9,6 +9,7 @@ import {
   setProfile,
   setProviderConfig
 } from "../lib/chrome";
+import { jsonToProfileFields, profileToJson } from "../lib/profile";
 import type { ProfileField } from "../types";
 import "../sidepanel/styles.css";
 
@@ -47,6 +48,7 @@ function Options() {
   const [profile, setProfileState] = useState<ProfileField[]>([]);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void getBackendUrl().then(setUrl);
@@ -69,6 +71,35 @@ function Options() {
     setProfileState((current) => [...current, { label: "", value: "" }]);
   const removeProfileField = (index: number) =>
     setProfileState((current) => current.filter((_, i) => i !== index));
+
+  const importProfileFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // let the same file be re-selected later
+    if (!file) return;
+    setError("");
+    setStatus("");
+    try {
+      const fields = jsonToProfileFields(JSON.parse(await file.text()));
+      if (!fields.length) {
+        setError("No usable fields found in that JSON.");
+        return;
+      }
+      setProfileState(fields);
+      setStatus(`Imported ${fields.length} field(s). Review and click Save.`);
+    } catch {
+      setError("Couldn't read that file as JSON.");
+    }
+  };
+
+  const exportProfile = () => {
+    const blob = new Blob([profileToJson(profile)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "openagent-profile.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   const applyPreset = (name: string) => {
     setPreset(name);
@@ -167,8 +198,9 @@ function Options() {
       <h2>Your information</h2>
       <p className="notice">
         Values OpenAgent can use to fill matching form fields (always with your approval). Stored
-        only in this browser, and sent to the model only on pages that have a form. Add anything —
-        e.g. Full name, Email, Phone, Address, LinkedIn URL.
+        only in this browser, and sent to the model only on pages that have a form. Add fields
+        manually, or import a JSON file — a flat <code>{'{ "Full name": "…" }'}</code> object or an
+        array of <code>{"{ label, value }"}</code>.
       </p>
       {profile.map((field, index) => (
         <div className="profile-row" key={index}>
@@ -195,9 +227,29 @@ function Options() {
           </button>
         </div>
       ))}
-      <button type="button" className="add-field-btn" onClick={addProfileField}>
-        + Add field
-      </button>
+      <div className="profile-actions">
+        <button type="button" className="add-field-btn" onClick={addProfileField}>
+          + Add field
+        </button>
+        <button type="button" className="add-field-btn" onClick={() => fileInput.current?.click()}>
+          Import JSON
+        </button>
+        <button
+          type="button"
+          className="add-field-btn"
+          onClick={exportProfile}
+          disabled={profile.length === 0}
+        >
+          Export JSON
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: "none" }}
+          onChange={(event) => void importProfileFile(event)}
+        />
+      </div>
 
       <button onClick={() => void save()}>Save</button>
       {status && <span className="status">{status}</span>}
