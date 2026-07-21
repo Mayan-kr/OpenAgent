@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { askAgent } from "../lib/api";
 import { getBackendUrl, getPageContext, getProviderConfig, openOptionsPage } from "../lib/chrome";
@@ -8,23 +8,30 @@ type Message = { role: "user" | "agent"; content: string };
 
 function SidePanel() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "agent", content: "Ready to help with this page." }
+    { role: "agent", content: "Hi! Ask me anything about the page you're viewing." }
   ]);
   const [input, setInput] = useState("");
-  const [status, setStatus] = useState("Connecting…");
+  const [online, setOnline] = useState<boolean | null>(null);
+  const [modelLabel, setModelLabel] = useState("");
   const [sending, setSending] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     Promise.all([getBackendUrl(), getProviderConfig()])
       .then(async ([url, provider]) => {
         const response = await fetch(`${url}/health`);
-        const backendStatus = response.ok ? "Local agent online" : "Backend unavailable";
-        setStatus(
-          provider ? `${backendStatus} · ${provider.model}` : `${backendStatus} · no API key set`
-        );
+        setOnline(response.ok);
+        setModelLabel(provider ? provider.model : "no API key set");
       })
-      .catch(() => setStatus("Backend unavailable"));
+      .catch(() => {
+        setOnline(false);
+        setModelLabel("");
+      });
   }, []);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, sending]);
 
   const submit = async () => {
     const prompt = input.trim();
@@ -53,30 +60,54 @@ function SidePanel() {
     }
   };
 
+  const statusText = online === null ? "Connecting…" : online ? "Online" : "Backend unavailable";
+  const dotClass = online === null ? "dot connecting" : online ? "dot online" : "dot offline";
+
   return (
     <main>
       <header>
-        <div className="header-left">
-          <strong>OpenAgent</strong>
-          <span className="status">{status}</span>
+        <div className="brand">
+          <span className="logo">O</span>
+          <div className="brand-text">
+            <strong>OpenAgent</strong>
+            <span className="status">
+              <span className={dotClass} />
+              {statusText}
+              {modelLabel && <span className="model"> · {modelLabel}</span>}
+            </span>
+          </div>
         </div>
         <button
           type="button"
           className="icon-button"
           onClick={() => void openOptionsPage()}
           aria-label="Open settings"
-          title="Open settings"
+          title="Settings"
         >
           ⚙
         </button>
       </header>
+
       <section className="messages" aria-live="polite">
         {messages.map((message, index) => (
-          <article className={message.role} key={index}>
-            {message.content}
-          </article>
+          <div className={`row ${message.role}`} key={index}>
+            {message.role === "agent" && <span className="avatar">O</span>}
+            <article className={`bubble ${message.role}`}>{message.content}</article>
+          </div>
         ))}
+        {sending && (
+          <div className="row agent">
+            <span className="avatar">O</span>
+            <article className="bubble agent typing" aria-label="OpenAgent is thinking">
+              <span className="dot-typing" />
+              <span className="dot-typing" />
+              <span className="dot-typing" />
+            </article>
+          </div>
+        )}
+        <div ref={endRef} />
       </section>
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -86,14 +117,24 @@ function SidePanel() {
         <textarea
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Ask about this page"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              void submit();
+            }
+          }}
+          placeholder="Ask about this page…"
           aria-label="Message OpenAgent"
+          rows={2}
         />
-        <button disabled={sending} type="submit">
-          {sending ? "Working…" : "Send"}
+        <button disabled={sending || !input.trim()} type="submit">
+          {sending ? "…" : "Send"}
         </button>
       </form>
-      <p className="notice">This milestone only exposes read-only page context through MCP.</p>
+      <p className="notice">
+        Read-only — OpenAgent can see this page but never clicks or types. Enter to send,
+        Shift+Enter for a new line.
+      </p>
     </main>
   );
 }

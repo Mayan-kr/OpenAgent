@@ -91,7 +91,7 @@ function Options() {
   };
 
   return (
-    <main>
+    <main className="settings">
       <header>
         <strong>OpenAgent settings</strong>
       </header>
