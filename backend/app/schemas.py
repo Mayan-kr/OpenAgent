@@ -51,6 +51,18 @@ class DomSnapshot(BaseModel):
     tree: list[DomNode] = Field(default_factory=list, max_length=200)
 
 
+class FormField(BaseModel):
+    """A single fillable form control the agent may be asked to populate."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    index: int = Field(ge=0, le=500)
+    selector: str = Field(default="", max_length=500)
+    label: str = Field(default="", max_length=200)
+    type: str = Field(default="text", max_length=40)
+    required: bool = False
+
+
 class PageContext(BaseModel):
     """A deliberately compressed, sanitized representation of a browser page."""
 
@@ -63,6 +75,7 @@ class PageContext(BaseModel):
     interactive_elements: list[InteractiveElement] = Field(
         default_factory=list, alias="interactiveElements", max_length=80
     )
+    form_fields: list[FormField] = Field(default_factory=list, alias="formFields", max_length=60)
     dom: DomSnapshot | None = None
 
 
@@ -97,9 +110,22 @@ class ChatRequest(BaseModel):
     provider: ProviderConfig | None = None
 
 
+class ProposedAction(BaseModel):
+    """A fill the agent proposes for the user to review. Never executed without approval."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["fill"] = "fill"
+    index: int = Field(ge=0, le=500)
+    selector: str = Field(default="", max_length=500)
+    label: str = Field(default="", max_length=200)
+    value: str = Field(max_length=2_000)
+
+
 class ChatResponse(BaseModel):
     message: str
     tool_hints: list[str] = Field(alias="toolHints")
+    actions: list[ProposedAction] = Field(default_factory=list)
 
 
 class ExtensionHello(BaseModel):

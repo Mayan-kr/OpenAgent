@@ -188,6 +188,60 @@ header {
   }
 }
 
+/* ---- Action (fill) card ---- */
+.action-card {
+  margin: 8px 0 2px 32px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent-2);
+  border-radius: 12px;
+  font-size: 13px;
+}
+.action-card.done {
+  border-color: var(--online);
+  color: var(--muted);
+}
+.action-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.action-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.action-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 4px 8px;
+  cursor: pointer;
+}
+.action-item input {
+  grid-row: span 2;
+  align-self: center;
+}
+.action-field {
+  color: var(--muted);
+  font-size: 12px;
+}
+.action-value {
+  grid-column: 2;
+  word-break: break-word;
+}
+.apply-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+.action-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* ---- Composer ---- */
 form {
   display: grid;

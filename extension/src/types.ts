@@ -36,12 +36,29 @@ export type DomSnapshot = {
   tree: DomNode[];
 };
 
+export type FormField = {
+  index: number;
+  selector: string;
+  label: string;
+  type: string;
+  required: boolean;
+};
+
+export type ProposedAction = {
+  type: "fill";
+  index: number;
+  selector: string;
+  label: string;
+  value: string;
+};
+
 export type PageContext = {
   url: string;
   title: string;
   text: string;
   selectedText: string;
   interactiveElements: InteractiveElement[];
+  formFields: FormField[];
   dom: DomSnapshot;
 };
 
@@ -53,4 +70,8 @@ export type ProviderConfig = {
   model: string;
 };
 
-export type ChatMessage = { role: "user" | "agent"; content: string };
+export type ChatMessage = {
+  role: "user" | "agent";
+  content: string;
+  actions?: ProposedAction[];
+};

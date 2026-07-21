@@ -140,11 +140,23 @@ Provider presets and their default models:
 
 1. Go to a web page you want to ask about.
 2. Open the OpenAgent side panel (toolbar icon, or the `Alt+Shift+O` shortcut).
-3. The header should read **"Local agent online · <your model>"**.
-4. Type a question about the page and hit **Send**.
+3. The header should read **"Online · <your model>"**.
+4. Type a question about the page and hit **Send** (or press Enter).
 
-The extension sends a bounded, read-only snapshot of the page plus your message to your
-chosen model. This milestone is **read-only** — the agent never clicks or types on the page.
+The extension sends a bounded snapshot of the page plus your message to your chosen model.
+Your conversation is saved locally, so closing and reopening the panel resumes it; the **✚**
+button starts a new chat.
+
+### Filling forms (approval-gated)
+
+OpenAgent can fill form fields for you, but never on its own:
+
+1. On a page with a form, tell it what to enter — e.g. _"fill in my name Ada Lovelace and email
+   ada@example.com"_. Give it the actual values; it will not invent personal data.
+2. It replies with a **proposed-fills card** listing each field and the value it would enter.
+3. Review it, untick anything you don't want, and click **Apply**. The fields fill in.
+4. **You** review the form and press the page's own **Submit** — OpenAgent never submits, never
+   clicks, and never touches password or payment fields (those are excluded entirely).
 
 ---
 

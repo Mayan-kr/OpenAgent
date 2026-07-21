@@ -1,16 +1,24 @@
 import type {
   DomNode,
   DomSnapshot,
+  FormField,
   FormSummary,
   InteractiveElement,
   PageContext,
+  ProposedAction,
   TableSummary
 } from "../types";
 
-function extractPageContext(): PageContext {
+// A form control is off-limits to the agent if it looks like a credential or payment field.
+// Kept as a plain string so it can be re-declared verbatim inside injected functions.
+const SENSITIVE_FIELD_PATTERN =
+  "pass|card|cc-|ccnum|cvv|cvc|ssn|social-security|routing|iban|sort-code|account-number|accountnumber|pin";
+
+function extractPageContext(sensitivePattern: string): PageContext {
   // executeScript serializes this function, so these bounds must live inside it.
   const maxTextLength = 12_000;
   const maxElements = 80;
+  const sensitive = new RegExp(sensitivePattern, "i");
   const selectorFor = (element: Element): string => {
     if (element.id) return `#${CSS.escape(element.id)}`;
     const tag = element.tagName.toLowerCase();
@@ -101,14 +109,113 @@ function extractPageContext(): PageContext {
       disabled: (element as HTMLButtonElement).disabled ?? false
     }));
 
+  // Fillable form controls, with a resolved human label. Password/payment fields are
+  // excluded outright so the agent never sees or proposes to touch them.
+  const excludedTypes = new Set(["hidden", "submit", "button", "reset", "image", "file"]);
+  const labelFor = (element: HTMLElement): string => {
+    if (element.id) {
+      const explicit = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
+      if (explicit?.textContent)
+        return explicit.textContent.replace(/\s+/g, " ").trim().slice(0, 200);
+    }
+    const wrapping = element.closest("label");
+    if (wrapping?.textContent)
+      return wrapping.textContent.replace(/\s+/g, " ").trim().slice(0, 200);
+    const aria = element.getAttribute("aria-label");
+    if (aria) return aria.slice(0, 200);
+    const labelledby = element.getAttribute("aria-labelledby");
+    if (labelledby) {
+      const ref = document.getElementById(labelledby);
+      if (ref?.textContent) return ref.textContent.replace(/\s+/g, " ").trim().slice(0, 200);
+    }
+    const placeholder = (element as HTMLInputElement).placeholder;
+    if (placeholder) return placeholder.slice(0, 200);
+    return element.getAttribute("name") ?? "";
+  };
+  const formFields = Array.from(document.querySelectorAll<HTMLElement>("input,select,textarea"))
+    .filter((element) => {
+      if (element.offsetParent === null) return false;
+      const input = element as HTMLInputElement;
+      const type = (input.type || "").toLowerCase();
+      if (excludedTypes.has(type)) return false;
+      if (input.disabled || input.readOnly) return false;
+      const haystack = `${input.name} ${input.id} ${input.getAttribute("autocomplete") ?? ""} ${labelFor(element)}`;
+      if (sensitive.test(haystack)) return false;
+      return true;
+    })
+    .slice(0, 60)
+    .map<FormField>((element, index) => ({
+      index,
+      selector: selectorFor(element),
+      label: labelFor(element),
+      type: (element as HTMLInputElement).type || element.tagName.toLowerCase(),
+      required: (element as HTMLInputElement).required ?? false
+    }));
+
   return {
     url: location.href,
     title: document.title,
     text: (document.body?.innerText ?? "").replace(/\s+/g, " ").slice(0, maxTextLength),
     selectedText: window.getSelection()?.toString().slice(0, 4_000) ?? "",
     interactiveElements: elements,
+    formFields,
     dom
   };
+}
+
+// Injected into the page to apply approved fills. Structured data only - never runs
+// model-authored code, never clicks, never submits. Re-derives the same ordered field
+// list as the extractor so an action's index resolves to the same control.
+function applyFillActions(actions: ProposedAction[], sensitivePattern: string): number {
+  const sensitive = new RegExp(sensitivePattern, "i");
+  const excludedTypes = new Set([
+    "hidden",
+    "submit",
+    "button",
+    "reset",
+    "image",
+    "file",
+    "password"
+  ]);
+  const isFillable = (element: Element | null): element is HTMLElement => {
+    if (!element) return false;
+    const input = element as HTMLInputElement;
+    const type = (input.type || "").toLowerCase();
+    if (excludedTypes.has(type)) return false;
+    if (input.disabled || input.readOnly) return false;
+    const haystack = `${input.name} ${input.id} ${input.getAttribute("autocomplete") ?? ""}`;
+    return !sensitive.test(haystack);
+  };
+  const orderedFields = Array.from(
+    document.querySelectorAll<HTMLElement>("input,select,textarea")
+  ).filter((element) => element.offsetParent !== null && isFillable(element));
+
+  const setValue = (element: HTMLElement, value: string): void => {
+    const input = element as HTMLInputElement;
+    input.focus();
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.blur();
+  };
+
+  let filled = 0;
+  for (const action of actions) {
+    let target: HTMLElement | null = null;
+    if (action.selector) {
+      const found = document.querySelector(action.selector);
+      if (isFillable(found)) target = found;
+    }
+    if (!target && typeof action.index === "number") {
+      const candidate = orderedFields[action.index];
+      if (isFillable(candidate)) target = candidate;
+    }
+    if (target) {
+      setValue(target, action.value);
+      filled += 1;
+    }
+  }
+  return filled;
 }
 
 async function currentPageContext(): Promise<PageContext> {
@@ -118,7 +225,8 @@ async function currentPageContext(): Promise<PageContext> {
   try {
     [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: extractPageContext
+      func: extractPageContext,
+      args: [SENSITIVE_FIELD_PATTERN]
     });
   } catch {
     throw new Error(
@@ -127,6 +235,22 @@ async function currentPageContext(): Promise<PageContext> {
   }
   if (!result) throw new Error("Unable to extract the active page.");
   return result;
+}
+
+async function applyActions(actions: ProposedAction[]): Promise<number> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("No active tab is available.");
+  let result: number | undefined;
+  try {
+    [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: applyFillActions,
+      args: [actions, SENSITIVE_FIELD_PATTERN]
+    });
+  } catch {
+    throw new Error("OpenAgent can't fill fields on this page.");
+  }
+  return result ?? 0;
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -149,7 +273,8 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (window.id) await chrome.sidePanel.open({ windowId: window.id });
 });
 
-chrome.runtime.onMessage.addListener((message: { type: string }) => {
+chrome.runtime.onMessage.addListener((message: { type: string; actions?: ProposedAction[] }) => {
   if (message.type === "GET_PAGE_CONTEXT") return currentPageContext();
+  if (message.type === "APPLY_ACTIONS") return applyActions(message.actions ?? []);
   return undefined;
 });

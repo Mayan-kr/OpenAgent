@@ -1,7 +1,12 @@
-import type { ChatMessage, PageContext, ProviderConfig } from "../types";
+import type { ChatMessage, PageContext, ProposedAction, ProviderConfig } from "../types";
 
 export const getPageContext = (): Promise<PageContext> =>
   chrome.runtime.sendMessage({ type: "GET_PAGE_CONTEXT" }) as Promise<PageContext>;
+
+// Ask the background to apply approved fills to the active page. Returns the number of
+// fields actually written.
+export const applyActions = (actions: ProposedAction[]): Promise<number> =>
+  chrome.runtime.sendMessage({ type: "APPLY_ACTIONS", actions }) as Promise<number>;
 
 export const getBackendUrl = async (): Promise<string> => {
   const { backendUrl } = await chrome.storage.local.get("backendUrl");

@@ -8,6 +8,7 @@ const page = {
   text: "Example text",
   selectedText: "",
   interactiveElements: [],
+  formFields: [],
   dom: { landmarks: [], headings: [], forms: [], tables: [], tree: [] }
 };
 

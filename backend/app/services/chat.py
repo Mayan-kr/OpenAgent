@@ -2,6 +2,7 @@ from app.schemas import ChatRequest, ChatResponse, PageContext
 from app.providers.base import GenerationRequest
 from app.providers.byok import build_ephemeral_provider
 from app.providers.registry import provider_registry
+from app.services.actions import parse_fill_actions
 from app.services.page_context import page_context_store
 
 
@@ -29,6 +30,25 @@ def build_page_system_prompt(page: PageContext) -> str:
         parts.append(f"## Links and buttons on the page\n{joined}")
     if page.text:
         parts.append(f"## Visible page text\n{page.text[:8_000]}")
+    if page.form_fields:
+        fields = "\n".join(
+            f"- [{field.index}] {field.label or '(no label)'} "
+            f"({field.type}{', required' if field.required else ''})"
+            for field in page.form_fields
+        )
+        parts.append(
+            "## Fillable form fields\n"
+            "Each line is `[index] label (type)`.\n"
+            f"{fields}\n\n"
+            "If, and only if, the user asks you to fill in, complete, or enter values into these "
+            "fields, reply with a short sentence for the user AND a fenced JSON block of the form:\n"
+            '```json\n{"actions": [{"index": <field index>, "value": "<value>"}]}\n```\n'
+            "Only include a field when you have a concrete value from the user's message or the "
+            "conversation. Never invent personal data such as names, emails, addresses, or phone "
+            "numbers. Password and payment fields are intentionally absent and must never be filled. "
+            "If you are missing a value, omit that field and ask the user for it in plain text. "
+            "The user reviews and approves every fill before anything is written to the page."
+        )
     return "\n\n".join(parts)
 
 
@@ -50,9 +70,11 @@ class ChatService:
                     prompt=request.message, system=system, model=provider_registry.model_name()
                 )
             )
+        message, actions = parse_fill_actions(generation.content, request.page)
         return ChatResponse(
-            message=generation.content,
+            message=message,
             toolHints=["browser.get_current_page", "browser.get_dom_snapshot"],
+            actions=actions,
         )
 
 

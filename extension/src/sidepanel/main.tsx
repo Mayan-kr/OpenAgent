@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { askAgent } from "../lib/api";
 import {
+  applyActions,
   clearConversation,
   getBackendUrl,
   getConversation,
@@ -10,13 +11,71 @@ import {
   openOptionsPage,
   setConversation
 } from "../lib/chrome";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, ProposedAction } from "../types";
 import "./styles.css";
 
 const GREETING: ChatMessage = {
   role: "agent",
   content: "Hi! Ask me anything about the page you're viewing."
 };
+
+function ActionCard({ actions }: { actions: ProposedAction[] }) {
+  const [selected, setSelected] = useState<boolean[]>(actions.map(() => true));
+  const [applied, setApplied] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (applied !== null) {
+    return (
+      <div className="action-card done">
+        Filled {applied} field{applied === 1 ? "" : "s"}. Review the form and submit it yourself.
+      </div>
+    );
+  }
+
+  const chosenCount = selected.filter(Boolean).length;
+  const apply = async () => {
+    setBusy(true);
+    try {
+      setApplied(await applyActions(actions.filter((_, index) => selected[index])));
+    } catch {
+      setApplied(0);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="action-card">
+      <div className="action-title">Proposed fills — review before applying</div>
+      <ul className="action-list">
+        {actions.map((action, index) => (
+          <li key={index}>
+            <label className="action-item">
+              <input
+                type="checkbox"
+                checked={selected[index]}
+                onChange={() =>
+                  setSelected((current) => current.map((v, i) => (i === index ? !v : v)))
+                }
+              />
+              <span className="action-field">{action.label || `Field ${action.index}`}</span>
+              <span className="action-value">{action.value}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className="apply-btn"
+        disabled={busy || chosenCount === 0}
+        onClick={() => void apply()}
+      >
+        {busy ? "Filling…" : `Apply ${chosenCount}`}
+      </button>
+      <p className="action-note">OpenAgent never submits the form — you press Submit yourself.</p>
+    </div>
+  );
+}
 
 function SidePanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
@@ -76,7 +135,10 @@ function SidePanel() {
         getProviderConfig()
       ]);
       const response = await askAgent(backendUrl, prompt, page, provider);
-      setMessages((current) => [...current, { role: "agent", content: response.message }]);
+      setMessages((current) => [
+        ...current,
+        { role: "agent", content: response.message, actions: response.actions }
+      ]);
     } catch (error) {
       setMessages((current) => [
         ...current,
@@ -131,9 +193,14 @@ function SidePanel() {
 
       <section className="messages" aria-live="polite">
         {messages.map((message, index) => (
-          <div className={`row ${message.role}`} key={index}>
-            {message.role === "agent" && <span className="avatar">O</span>}
-            <article className={`bubble ${message.role}`}>{message.content}</article>
+          <div key={index}>
+            <div className={`row ${message.role}`}>
+              {message.role === "agent" && <span className="avatar">O</span>}
+              <article className={`bubble ${message.role}`}>{message.content}</article>
+            </div>
+            {message.role === "agent" && message.actions && message.actions.length > 0 && (
+              <ActionCard actions={message.actions} />
+            )}
           </div>
         ))}
         {sending && (
@@ -173,8 +240,8 @@ function SidePanel() {
         </button>
       </form>
       <p className="notice">
-        Read-only — OpenAgent can see this page but never clicks or types. Enter to send,
-        Shift+Enter for a new line.
+        OpenAgent reads this page and can fill fields only after you approve — it never submits.
+        Enter to send, Shift+Enter for a new line.
       </p>
     </main>
   );

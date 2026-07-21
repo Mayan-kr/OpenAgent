@@ -1,6 +1,6 @@
-import type { PageContext, ProviderConfig } from "../types";
+import type { PageContext, ProposedAction, ProviderConfig } from "../types";
 
-type ChatResponse = { message: string; toolHints: string[] };
+type ChatResponse = { message: string; toolHints: string[]; actions?: ProposedAction[] };
 
 export async function askAgent(
   backendUrl: string,
