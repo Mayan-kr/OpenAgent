@@ -3,10 +3,13 @@ import { createRoot } from "react-dom/client";
 import {
   clearProviderConfig,
   getBackendUrl,
+  getProfile,
   getProviderConfig,
   setBackendUrl,
+  setProfile,
   setProviderConfig
 } from "../lib/chrome";
+import type { ProfileField } from "../types";
 import "../sidepanel/styles.css";
 
 const PROVIDER_PRESETS: { name: string; baseUrl: string; defaultModel: string }[] = [
@@ -41,6 +44,7 @@ function Options() {
   const [providerBaseUrl, setProviderBaseUrl] = useState(PROVIDER_PRESETS[0].baseUrl);
   const [model, setModel] = useState(PROVIDER_PRESETS[0].defaultModel);
   const [apiKey, setApiKey] = useState("");
+  const [profile, setProfileState] = useState<ProfileField[]>([]);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
@@ -54,7 +58,17 @@ function Options() {
       setModel(config.model);
       setApiKey(config.apiKey);
     });
+    void getProfile().then(setProfileState);
   }, []);
+
+  const updateProfileField = (index: number, key: "label" | "value", next: string) =>
+    setProfileState((current) =>
+      current.map((field, i) => (i === index ? { ...field, [key]: next } : field))
+    );
+  const addProfileField = () =>
+    setProfileState((current) => [...current, { label: "", value: "" }]);
+  const removeProfileField = (index: number) =>
+    setProfileState((current) => current.filter((_, i) => i !== index));
 
   const applyPreset = (name: string) => {
     setPreset(name);
@@ -69,6 +83,12 @@ function Options() {
     setError("");
     setStatus("");
     await setBackendUrl(backendUrl);
+    // Persist the profile in every branch (drop rows left without a label).
+    await setProfile(
+      profile
+        .filter((field) => field.label.trim())
+        .map((field) => ({ label: field.label.trim(), value: field.value }))
+    );
 
     const key = apiKey.trim();
     const url = providerBaseUrl.trim();
@@ -143,6 +163,41 @@ function Options() {
           autoComplete="off"
         />
       </label>
+
+      <h2>Your information</h2>
+      <p className="notice">
+        Values OpenAgent can use to fill matching form fields (always with your approval). Stored
+        only in this browser, and sent to the model only on pages that have a form. Add anything —
+        e.g. Full name, Email, Phone, Address, LinkedIn URL.
+      </p>
+      {profile.map((field, index) => (
+        <div className="profile-row" key={index}>
+          <input
+            className="profile-label"
+            value={field.label}
+            onChange={(event) => updateProfileField(index, "label", event.target.value)}
+            placeholder="Field (e.g. Email)"
+          />
+          <input
+            className="profile-value"
+            value={field.value}
+            onChange={(event) => updateProfileField(index, "value", event.target.value)}
+            placeholder="Value"
+          />
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => removeProfileField(index)}
+            aria-label="Remove field"
+            title="Remove"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button type="button" className="add-field-btn" onClick={addProfileField}>
+        + Add field
+      </button>
 
       <button onClick={() => void save()}>Save</button>
       {status && <span className="status">{status}</span>}

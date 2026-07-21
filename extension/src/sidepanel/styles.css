@@ -364,6 +364,41 @@ main.settings label select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.18);
 }
+main.settings .profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 6px;
+  align-items: center;
+  padding: 0 14px;
+}
+main.settings .profile-row input {
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  min-width: 0;
+}
+main.settings .profile-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.18);
+}
+main.settings .add-field-btn {
+  margin: 2px 14px 0;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  justify-self: start;
+}
+main.settings .add-field-btn:hover:not(:disabled) {
+  filter: none;
+  color: var(--text);
+  border-color: var(--accent);
+}
 main.settings > button {
   margin: 10px 14px 2px;
   padding: 11px 16px;

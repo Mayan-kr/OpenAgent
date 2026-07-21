@@ -147,12 +147,21 @@ The extension sends a bounded snapshot of the page plus your message to your cho
 Your conversation is saved locally, so closing and reopening the panel resumes it; the **✚**
 button starts a new chat.
 
+### Save your information (optional)
+
+So you don't retype the same details every time, open ⚙ settings → **Your information** and add
+label → value fields (e.g. `Full name` → `Ada Lovelace`, `Email` → `ada@example.com`, plus any
+custom field you like — phone, address, LinkedIn URL). Click **+ Add field** to add rows, the ✕ to
+remove one, then **Save**. These values are stored only in this browser and are sent to the model
+**only on pages that have a form**, never during ordinary browsing questions.
+
 ### Filling forms (approval-gated)
 
 OpenAgent can fill form fields for you, but never on its own:
 
-1. On a page with a form, tell it what to enter — e.g. _"fill in my name Ada Lovelace and email
-   ada@example.com"_. Give it the actual values; it will not invent personal data.
+1. On a page with a form, ask it to fill the form. It uses your saved information (above) and
+   anything you provide in chat — e.g. _"fill in my details"_ or _"use ada@example.com for the
+   email"_. It will not invent personal data it wasn't given.
 2. It replies with a **proposed-fills card** listing each field and the value it would enter.
 3. Review it, untick anything you don't want, and click **Apply**. The fields fill in.
 4. **You** review the form and press the page's own **Submit** — OpenAgent never submits, never

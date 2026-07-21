@@ -1,4 +1,4 @@
-from app.schemas import ChatRequest, ChatResponse, PageContext
+from app.schemas import ChatRequest, ChatResponse, PageContext, ProfileEntry
 from app.providers.base import GenerationRequest
 from app.providers.byok import build_ephemeral_provider
 from app.providers.registry import provider_registry
@@ -6,7 +6,7 @@ from app.services.actions import parse_fill_actions
 from app.services.page_context import page_context_store
 
 
-def build_page_system_prompt(page: PageContext) -> str:
+def build_page_system_prompt(page: PageContext, profile: list[ProfileEntry] | None = None) -> str:
     """Turn the bounded page snapshot into a grounding system prompt for the model.
 
     The page is untrusted data, so the instruction says so explicitly and the content is
@@ -31,6 +31,14 @@ def build_page_system_prompt(page: PageContext) -> str:
     if page.text:
         parts.append(f"## Visible page text\n{page.text[:8_000]}")
     if page.form_fields:
+        if profile:
+            saved = "\n".join(f"- {entry.label}: {entry.value}" for entry in profile)
+            parts.append(
+                "## The user's saved information\n"
+                "Use these values to fill matching form fields when asked. Only use a value where "
+                "it clearly matches a field; do not force an unrelated value in.\n"
+                f"{saved}"
+            )
         fields = "\n".join(
             f"- [{field.index}] {field.label or '(no label)'} "
             f"({field.type}{', required' if field.required else ''})"
@@ -43,11 +51,11 @@ def build_page_system_prompt(page: PageContext) -> str:
             "If, and only if, the user asks you to fill in, complete, or enter values into these "
             "fields, reply with a short sentence for the user AND a fenced JSON block of the form:\n"
             '```json\n{"actions": [{"index": <field index>, "value": "<value>"}]}\n```\n'
-            "Only include a field when you have a concrete value from the user's message or the "
-            "conversation. Never invent personal data such as names, emails, addresses, or phone "
-            "numbers. Password and payment fields are intentionally absent and must never be filled. "
-            "If you are missing a value, omit that field and ask the user for it in plain text. "
-            "The user reviews and approves every fill before anything is written to the page."
+            "Draw values from the user's saved information above and from the conversation. Never "
+            "invent personal data such as names, emails, addresses, or phone numbers that you were "
+            "not given. Password and payment fields are intentionally absent and must never be "
+            "filled. If you are missing a value, omit that field and ask the user for it in plain "
+            "text. The user reviews and approves every fill before anything is written to the page."
         )
     return "\n\n".join(parts)
 
@@ -57,7 +65,7 @@ class ChatService:
 
     def reply(self, request: ChatRequest) -> ChatResponse:
         page_context_store.save(request.page)
-        system = build_page_system_prompt(request.page)
+        system = build_page_system_prompt(request.page, request.profile)
         if request.provider is not None:
             generation = build_ephemeral_provider(request.provider).generate(
                 GenerationRequest(

@@ -1,4 +1,10 @@
-import type { ChatMessage, PageContext, ProposedAction, ProviderConfig } from "../types";
+import type {
+  ChatMessage,
+  PageContext,
+  ProfileField,
+  ProposedAction,
+  ProviderConfig
+} from "../types";
 
 export const getPageContext = (): Promise<PageContext> =>
   chrome.runtime.sendMessage({ type: "GET_PAGE_CONTEXT" }) as Promise<PageContext>;
@@ -28,6 +34,16 @@ export const setProviderConfig = (providerConfig: ProviderConfig): Promise<void>
 
 export const clearProviderConfig = (): Promise<void> =>
   chrome.storage.local.remove("providerConfig");
+
+// The user's saved information (label -> value). Device-local only, and only sent to the
+// model when the current page has a form to fill.
+export const getProfile = async (): Promise<ProfileField[]> => {
+  const { profile } = await chrome.storage.local.get("profile");
+  return (profile as ProfileField[] | undefined) ?? [];
+};
+
+export const setProfile = (profile: ProfileField[]): Promise<void> =>
+  chrome.storage.local.set({ profile });
 
 export const openOptionsPage = (): Promise<void> => chrome.runtime.openOptionsPage();
 

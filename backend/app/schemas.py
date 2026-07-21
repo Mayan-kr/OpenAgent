@@ -102,12 +102,22 @@ class ProviderConfig(BaseModel):
         return value
 
 
+class ProfileEntry(BaseModel):
+    """One saved piece of the user's information, used to fill matching form fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(max_length=100)
+    value: str = Field(max_length=2_000)
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     message: str = Field(min_length=1, max_length=8_000)
     page: PageContext
     provider: ProviderConfig | None = None
+    profile: list[ProfileEntry] = Field(default_factory=list, max_length=50)
 
 
 class ProposedAction(BaseModel):

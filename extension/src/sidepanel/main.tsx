@@ -7,6 +7,7 @@ import {
   getBackendUrl,
   getConversation,
   getPageContext,
+  getProfile,
   getProviderConfig,
   openOptionsPage,
   setConversation
@@ -129,12 +130,13 @@ function SidePanel() {
     setInput("");
     setMessages((current) => [...current, { role: "user", content: prompt }]);
     try {
-      const [backendUrl, page, provider] = await Promise.all([
+      const [backendUrl, page, provider, profile] = await Promise.all([
         getBackendUrl(),
         getPageContext(),
-        getProviderConfig()
+        getProviderConfig(),
+        getProfile()
       ]);
-      const response = await askAgent(backendUrl, prompt, page, provider);
+      const response = await askAgent(backendUrl, prompt, page, provider, profile);
       setMessages((current) => [
         ...current,
         { role: "agent", content: response.message, actions: response.actions }

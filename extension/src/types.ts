@@ -75,3 +75,5 @@ export type ChatMessage = {
   content: string;
   actions?: ProposedAction[];
 };
+
+export type ProfileField = { label: string; value: string };
